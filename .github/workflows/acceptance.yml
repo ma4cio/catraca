@@ -1,0 +1,43 @@
+name: Fluxo do avaliador
+
+on:
+  push:
+    branches: [main, integration/candidate]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Subir a partir do checkout limpo
+        run: docker compose up --build -d --wait
+      - name: Exercitar o produto com o gateway padrão
+        run: node scripts/evaluator.mjs
+      - name: Rodar gates
+        run: bash scripts/gates.sh
+      - name: Verificar desligamento e nova subida
+        run: |
+          docker compose down --remove-orphans
+          test -z "$(docker compose ps -q)"
+          if curl --silent --max-time 3 --output /dev/null http://127.0.0.1:3000/health; then
+            echo "A porta do produto ainda responde" >&2
+            exit 1
+          fi
+          docker compose up --build -d --wait
+          node scripts/evaluator.mjs --seed-only
+      - name: Logs em caso de falha
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Limpar ambiente do runner
+        if: always()
+        run: docker compose down --remove-orphans
