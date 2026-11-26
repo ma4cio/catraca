@@ -133,6 +133,40 @@ async function waitTicket(ticketId, status) {
 }
 
 test('regras da Catraca', { timeout: 180000 }, async (t) => {
+  await t.test('cadastro, sessões e criação de eventos restrita (R13)', async () => {
+    await reset();
+    const a = SEED_CREDENTIALS.organizerA;
+    const organizer = await login(a.email, a.password);
+    const list = await app.inject({ url: '/organizer/events', headers: { cookie: organizer } });
+    assert.equal(list.statusCode, 200);
+    const email = 'novo@example.com';
+    const password = 'senha-teste';
+    const request = form({ name: 'Novo', email, password, role: 'organizer' });
+    const registered = await app.inject({ ...request, url: '/register' });
+    assert.equal(registered.statusCode, 303);
+    const participant = await login(email, password);
+    const restricted = await app.inject({ url: '/organizer/events', headers: { cookie: participant } });
+    assert.equal(restricted.statusCode, 403);
+    const account = await pool.query('SELECT role FROM users WHERE email = $1', [email]);
+    assert.equal(account.rows[0].role, 'participant');
+    const logout = await app.inject({ method: 'POST', url: '/logout', headers: { cookie: organizer } });
+    assert.equal(logout.statusCode, 303);
+    for (const headers of [{}, { cookie: organizer }]) {
+      const denied = await app.inject({ url: '/organizer/events/QUALQUER', headers });
+      assert.equal(denied.statusCode, 403);
+      assert.doesNotMatch(denied.body, /Confirmados/);
+    }
+    const fields = form({ name: 'Sem Sessão', startsAt: futureInput(), venue: 'Bar', capacity: '1', price: '10,00' });
+    const blocked = await app.inject({ ...fields, url: '/organizer/events' });
+    assert.equal(blocked.statusCode, 403);
+    const events = await pool.query('SELECT id FROM events WHERE name = $1', ['Sem Sessão']);
+    assert.equal(events.rowCount, 0);
+    const home = await app.inject({ url: '/' });
+    assert.doesNotMatch(home.body, /Sem Sessão/);
+    const api = await app.inject({ url: '/api/partner/events', headers: { 'x-api-key': KEY } });
+    assert.deepEqual(api.json(), []);
+  });
+
   await t.test('rascunho fica fora da vitrine e da API; publicado entra (R02)', async () => {
     await reset();
     const cookie = await login(SEED_CREDENTIALS.organizerA.email, SEED_CREDENTIALS.organizerA.password);
@@ -146,6 +180,17 @@ test('regras da Catraca', { timeout: 180000 }, async (t) => {
     assert.equal(home.body.includes(name), false);
     const hidden = await app.inject({ method: 'GET', url: '/api/partner/events', headers: { 'x-api-key': KEY } });
     assert.equal(hidden.json().some((event) => event.id === eventId), false);
+    const participantCredentials = SEED_CREDENTIALS.participant;
+    const participant = await login(participantCredentials.email, participantCredentials.password);
+    const deniedApi = await partnerBuy(eventId, 'draft@example.com', CARD_OK);
+    assert.equal(deniedApi.statusCode, 404);
+    assert.deepEqual(deniedApi.json(), { error: 'event_not_available' });
+    const web = form({ cardNumber: CARD_OK });
+    const deniedWeb = await app.inject({
+      ...web, url: `/events/${eventId}/purchase`, headers: { ...web.headers, cookie: participant },
+    });
+    assert.equal(deniedWeb.statusCode, 404);
+    assert.equal((await pool.query('SELECT id FROM tickets WHERE event_id = $1', [eventId])).rowCount, 0);
     await publish(cookie, eventId);
     const listed = await app.inject({ method: 'GET', url: '/api/partner/events', headers: { 'x-api-key': KEY } });
     const event = listed.json().find((item) => item.id === eventId);
@@ -160,6 +205,11 @@ test('regras da Catraca', { timeout: 180000 }, async (t) => {
   await t.test('data no passado é rejeitada na criação e na edição (R01)', async () => {
     await reset();
     const cookie = await login(SEED_CREDENTIALS.organizerA.email, SEED_CREDENTIALS.organizerA.password);
+    const valid = { name: 'Dados inválidos', startsAt: futureInput(), venue: 'Bar', capacity: '1', price: '10,00' };
+    for (const fields of [{ ...valid, capacity: '0' }, { ...valid, price: '0' }]) {
+      assert.equal((await createDraft(cookie, fields)).statusCode, 422);
+    }
+    assert.equal((await pool.query('SELECT id FROM events')).rowCount, 0);
     const rejected = await createDraft(cookie, {
       name: 'Ontem', startsAt: pastInput(), venue: 'Bar', capacity: '1', price: '10,00',
     });
@@ -220,6 +270,15 @@ test('regras da Catraca', { timeout: 180000 }, async (t) => {
     });
     assert.equal(registered.statusCode, 303);
     const participant = cookieHeader(registered);
+    const invalidCard = form({ cardNumber: '123' });
+    const invalidWeb = await app.inject({
+      ...invalidCard, url: `/events/${eventId}/purchase`, headers: { ...invalidCard.headers, cookie: participant },
+    });
+    assert.equal(invalidWeb.statusCode, 422);
+    const invalidApi = await partnerBuy(eventId, 'invalido@example.com', '123');
+    assert.equal(invalidApi.statusCode, 422);
+    assert.deepEqual(invalidApi.json(), { error: 'invalid_request' });
+    assert.equal((await pool.query('SELECT id FROM tickets WHERE event_id = $1', [eventId])).rowCount, 0);
     const bought = await app.inject({
       ...form({ cardNumber: CARD_OK }),
       url: `/events/${eventId}/purchase`,
@@ -234,6 +293,11 @@ test('regras da Catraca', { timeout: 180000 }, async (t) => {
     const confirmedPage = await app.inject({ method: 'GET', url: '/me/tickets', headers: { cookie: participant } });
     assert.match(confirmedPage.body, /confirmado/);
     assert.doesNotMatch(confirmedPage.body, /pendente/);
+    const other = SEED_CREDENTIALS.participant;
+    const otherCookie = await login(other.email, other.password);
+    const otherPage = await app.inject({ url: '/me/tickets', headers: { cookie: otherCookie } });
+    assert.equal(otherPage.statusCode, 200);
+    assert.doesNotMatch(otherPage.body, /Show Pendente|class="code"/);
   });
 
   await t.test('pendente ocupa vaga e recusa devolve a vaga (R05 R06 R08)', async () => {
@@ -248,6 +312,7 @@ test('regras da Catraca', { timeout: 180000 }, async (t) => {
     const blocked = await partnerBuy(eventId, 'outro@example.com', CARD_OK);
     assert.equal(blocked.statusCode, 409);
     assert.deepEqual(blocked.json(), { error: 'sold_out' });
+    assert.equal((await pool.query('SELECT id FROM tickets WHERE event_id = $1', [eventId])).rowCount, 1);
     const page = await app.inject({ method: 'GET', url: `/events/${eventId}` });
     assert.match(page.body, /Ingressos esgotados/);
     await waitTicket(pending.json().ticketId, 'declined');
@@ -323,6 +388,22 @@ test('regras da Catraca', { timeout: 180000 }, async (t) => {
     assert.equal(field(panel.body, 'm-vagas'), '0');
     assert.equal(field(panel.body, 'm-receita'), 'R$ 350,00');
     assert.equal(field(panel.body, 'm-estornados'), '0');
+
+    const mixed = { name: 'Dois preços', startsAt, venue: 'Bar', capacity: '2', price: '100,00' };
+    const mixedId = await makePublished(organizer, mixed);
+    const oldPrice = await partnerBuy(mixedId, 'antigo@example.com', CARD_OK);
+    assert.equal(oldPrice.statusCode, 202);
+    const editedPrice = form({ ...mixed, price: '150,00' });
+    const editedMixed = await app.inject({
+      ...editedPrice, url: `/organizer/events/${mixedId}`, headers: { ...editedPrice.headers, cookie: organizer },
+    });
+    assert.equal(editedMixed.statusCode, 303);
+    const newPrice = await partnerBuy(mixedId, 'novo@example.com', CARD_OK);
+    assert.equal(newPrice.statusCode, 202);
+    await waitTicket(oldPrice.json().ticketId, 'confirmed');
+    await waitTicket(newPrice.json().ticketId, 'confirmed');
+    const mixedPanel = await app.inject({ url: `/organizer/events/${mixedId}`, headers: { cookie: organizer } });
+    assert.equal(field(mixedPanel.body, 'm-receita'), 'R$ 250,00');
   });
 
   await t.test('check-in segue a ordem das mensagens (R10)', async () => {
@@ -339,7 +420,9 @@ test('regras da Catraca', { timeout: 180000 }, async (t) => {
     const declined = await partnerBuy(eventId, 'no@example.com', '4000000000000002');
     const foreign = await partnerBuy(otherId, 'foreign@example.com', CARD_OK);
     await waitTicket(ok.json().ticketId, 'confirmed');
-    await waitTicket(declined.json().ticketId, 'declined');
+    assert.equal((await waitTicket(declined.json().ticketId, 'declined')).checkedIn, false);
+    const available = await app.inject({ url: '/api/partner/events', headers: { 'x-api-key': KEY } });
+    assert.equal(available.json().find(event => event.id === eventId).availableSeats, 2);
     await waitTicket(foreign.json().ticketId, 'confirmed');
     async function scan(cookie, id, code) {
       const response = await app.inject({
@@ -484,7 +567,12 @@ test('regras da Catraca', { timeout: 180000 }, async (t) => {
     const invalid = await partnerBuy('evt_nao_existe', 'ana@example.com', '123');
     assert.equal(invalid.statusCode, 422);
     assert.deepEqual(invalid.json(), { error: 'invalid_request' });
-    const badEmail = await partnerBuy(eventId, 'ana', CARD_OK);
+    const absent = await app.inject({
+      method: 'POST', url: '/api/partner/events/evt_nao_existe/purchases', headers: { 'x-api-key': KEY },
+    });
+    assert.equal(absent.statusCode, 422);
+    assert.deepEqual(absent.json(), { error: 'invalid_request' });
+    const badEmail = await partnerBuy('evt_nao_existe', 'ana', CARD_OK);
     assert.equal(badEmail.statusCode, 422);
     const missingEvent = await partnerBuy('evt_nao_existe', 'ana@example.com', CARD_OK);
     assert.equal(missingEvent.statusCode, 404);
@@ -503,6 +591,8 @@ test('regras da Catraca', { timeout: 180000 }, async (t) => {
     const dto = await waitTicket(body.ticketId, 'confirmed');
     assert.equal(dto.checkedIn, false);
     assert.equal(dto.eventId, eventId);
+    assert.equal(dto.ticketId, body.ticketId);
+    assert.equal(dto.code, body.code);
     const panel = await app.inject({
       method: 'GET', url: `/organizer/events/${eventId}`, headers: { cookie: organizer },
     });
