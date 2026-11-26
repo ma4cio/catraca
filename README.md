@@ -65,10 +65,10 @@ Não há chave de pagamento. O modo padrão usa o gateway simulado.
   - [docs/features/F06-checkin](docs/features/F06-checkin)
   - [docs/features/F07-cancelamento](docs/features/F07-cancelamento)
 
-Wave paralela (wave 4). As duas features foram implementadas em worktrees separadas. Os links dos PRs dependem da publicação do repositório.
+Wave paralela (wave 4). As duas features foram implementadas em worktrees separadas. Os PRs registram o histórico de cada branch.
 
-- F05 API de parceiros — branch `feature/f05-parceiros`.
-- F06 Check-in — branch `feature/f06-checkin`.
+- [F05 API de parceiros — PR #1](https://github.com/ma4cio/catraca/pull/1).
+- [F06 Check-in — PR #2](https://github.com/ma4cio/catraca/pull/2).
 
 ## Decisões
 
