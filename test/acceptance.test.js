@@ -139,6 +139,10 @@ test('regras da Catraca', { timeout: 180000 }, async (t) => {
     const organizer = await login(a.email, a.password);
     const list = await app.inject({ url: '/organizer/events', headers: { cookie: organizer } });
     assert.equal(list.statusCode, 200);
+    const privateName = 'Evento exclusivo de A';
+    const eventId = await makePublished(organizer, {
+      name: privateName, startsAt: futureInput(), venue: 'Bar', capacity: '1', price: '10,00',
+    });
     const email = 'novo@example.com';
     const password = 'senha-teste';
     const request = form({ name: 'Novo', email, password, role: 'organizer' });
@@ -147,13 +151,15 @@ test('regras da Catraca', { timeout: 180000 }, async (t) => {
     const participant = await login(email, password);
     const restricted = await app.inject({ url: '/organizer/events', headers: { cookie: participant } });
     assert.equal(restricted.statusCode, 403);
+    assert.ok(!restricted.body.includes(privateName));
     const account = await pool.query('SELECT role FROM users WHERE email = $1', [email]);
     assert.equal(account.rows[0].role, 'participant');
     const logout = await app.inject({ method: 'POST', url: '/logout', headers: { cookie: organizer } });
     assert.equal(logout.statusCode, 303);
     for (const headers of [{}, { cookie: organizer }]) {
-      const denied = await app.inject({ url: '/organizer/events/QUALQUER', headers });
+      const denied = await app.inject({ url: `/organizer/events/${eventId}`, headers });
       assert.equal(denied.statusCode, 403);
+      assert.ok(!denied.body.includes(privateName));
       assert.doesNotMatch(denied.body, /Confirmados/);
     }
     const fields = form({ name: 'Sem Sessão', startsAt: futureInput(), venue: 'Bar', capacity: '1', price: '10,00' });
@@ -164,7 +170,7 @@ test('regras da Catraca', { timeout: 180000 }, async (t) => {
     const home = await app.inject({ url: '/' });
     assert.doesNotMatch(home.body, /Sem Sessão/);
     const api = await app.inject({ url: '/api/partner/events', headers: { 'x-api-key': KEY } });
-    assert.deepEqual(api.json(), []);
+    assert.ok(!api.json().some(event => event.name === 'Sem Sessão'));
   });
 
   await t.test('rascunho fica fora da vitrine e da API; publicado entra (R02)', async () => {
@@ -393,14 +399,14 @@ test('regras da Catraca', { timeout: 180000 }, async (t) => {
     const mixedId = await makePublished(organizer, mixed);
     const oldPrice = await partnerBuy(mixedId, 'antigo@example.com', CARD_OK);
     assert.equal(oldPrice.statusCode, 202);
-    const editedPrice = form({ ...mixed, price: '150,00' });
+    await waitTicket(oldPrice.json().ticketId, 'confirmed');
+    const editedPrice = form({ ...mixed, capacity: '3', price: '150,00' });
     const editedMixed = await app.inject({
       ...editedPrice, url: `/organizer/events/${mixedId}`, headers: { ...editedPrice.headers, cookie: organizer },
     });
     assert.equal(editedMixed.statusCode, 303);
     const newPrice = await partnerBuy(mixedId, 'novo@example.com', CARD_OK);
     assert.equal(newPrice.statusCode, 202);
-    await waitTicket(oldPrice.json().ticketId, 'confirmed');
     await waitTicket(newPrice.json().ticketId, 'confirmed');
     const mixedPanel = await app.inject({ url: `/organizer/events/${mixedId}`, headers: { cookie: organizer } });
     assert.equal(field(mixedPanel.body, 'm-receita'), 'R$ 250,00');
@@ -417,10 +423,12 @@ test('regras da Catraca', { timeout: 180000 }, async (t) => {
       name: 'Outro', startsAt: futureInput(), venue: 'Rua', capacity: '1', price: '10,00',
     });
     const ok = await partnerBuy(eventId, 'ok@example.com', CARD_OK);
+    const declineStarted = Date.now();
     const declined = await partnerBuy(eventId, 'no@example.com', '4000000000000002');
     const foreign = await partnerBuy(otherId, 'foreign@example.com', CARD_OK);
     await waitTicket(ok.json().ticketId, 'confirmed');
     assert.equal((await waitTicket(declined.json().ticketId, 'declined')).checkedIn, false);
+    assert.ok(Date.now() - declineStarted <= FAST_MAX + 1000, 'recusa fora da janela rápida dos gates');
     const available = await app.inject({ url: '/api/partner/events', headers: { 'x-api-key': KEY } });
     assert.equal(available.json().find(event => event.id === eventId).availableSeats, 2);
     await waitTicket(foreign.json().ticketId, 'confirmed');
@@ -574,6 +582,7 @@ test('regras da Catraca', { timeout: 180000 }, async (t) => {
     assert.deepEqual(absent.json(), { error: 'invalid_request' });
     const badEmail = await partnerBuy('evt_nao_existe', 'ana', CARD_OK);
     assert.equal(badEmail.statusCode, 422);
+    assert.deepEqual(badEmail.json(), { error: 'invalid_request' });
     const missingEvent = await partnerBuy('evt_nao_existe', 'ana@example.com', CARD_OK);
     assert.equal(missingEvent.statusCode, 404);
     assert.deepEqual(missingEvent.json(), { error: 'event_not_available' });
