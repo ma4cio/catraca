@@ -10,6 +10,7 @@ import {
 } from './html.js';
 import { currentUser, authenticate, closeSession, openSession, registerParticipant } from './users.js';
 import {
+  cancelEvent,
   createEvent,
   getEvent,
   listOwnedEvents,
@@ -252,6 +253,20 @@ export function registerRoutes(app) {
     if (result.error) {
       const metrics = await eventMetrics(null, owned.event.id);
       return sendHtml(reply, 422, managementPage({ ...owned, metrics, error: inputErrorMessage(result.error) }));
+    }
+    return redirect(reply, `/organizer/events/${owned.event.id}`);
+  });
+
+  app.post('/organizer/events/:id/cancel', async (request, reply) => {
+    const owned = await requireOwnedEvent(request, reply, request.params.id);
+    if (!owned) return;
+    const result = await cancelEvent(owned.event.id, owned.user.id);
+    if (result.error) {
+      const event = await getEvent(owned.event.id);
+      const metrics = await eventMetrics(null, event.id);
+      return sendHtml(reply, 422, managementPage({
+        user: owned.user, event, metrics, error: 'Só eventos publicados podem ser cancelados.',
+      }));
     }
     return redirect(reply, `/organizer/events/${owned.event.id}`);
   });

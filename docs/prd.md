@@ -58,18 +58,18 @@ Consome: ciclo de vida da F02, liquidação da F03 (para não reverter o cancela
 
 ## Grafo
 
-```text
-F01 ──► F02 ──► F04 ──► F05
-                  ▲      │
-F03 ──────────────┘      │
-                  │      │
-                  └──► F06 ──► F07
-F02 ─────────────────────────► F07
-F03 ─────────────────────────► F07
-F04 ─────────────────────────► F07
+As setas ligam a feature que provê à feature que consome.
+
+```mermaid
+flowchart TD
+    F01 --> F02 & F04
+    F02 --> F04 & F05 & F06 & F07
+    F03 --> F04 & F07
+    F04 --> F05 & F06 & F07
+    F06 --> F07
 ```
 
-Arestas: F02→F01, F04→F01, F04→F02, F04→F03, F05→F02, F05→F04, F06→F02, F06→F04, F07→F02, F07→F03, F07→F04, F07→F06.
+Arestas: F01→F02, F01→F04, F02→F04, F02→F05, F02→F06, F02→F07, F03→F04, F03→F07, F04→F05, F04→F06, F04→F07, F06→F07.
 
 ## Waves
 

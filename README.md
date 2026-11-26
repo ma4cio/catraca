@@ -26,6 +26,8 @@ bash scripts/gates.sh
 
 Equivalentes que chamam o mesmo Docker, se preferir Node: `node scripts/up.mjs`, `node scripts/down.mjs` e `node scripts/gates.mjs`.
 
+Com o produto no ar, rode `node scripts/evaluator.mjs` para exercitar via HTTP os passos 1 a 16 com o gateway padrão. O [workflow de aceitação](.github/workflows/acceptance.yml) também roda os gates, verifica o encerramento do ambiente e valida as contas da seed após a segunda subida, no passo 17.
+
 Subir de novo depois de derrubar funciona: a seed é idempotente.
 
 ## Endereços
@@ -63,10 +65,10 @@ Não há chave de pagamento. O modo padrão usa o gateway simulado.
   - [docs/features/F06-checkin](docs/features/F06-checkin)
   - [docs/features/F07-cancelamento](docs/features/F07-cancelamento)
 
-PRs da wave paralela (wave 4, F05 e F06), mergeados na main:
+Wave paralela (wave 4). As duas features foram implementadas em worktrees separadas. Os PRs registram o histórico de cada branch.
 
-- F05 API de parceiros: a publicar
-- F06 Check-in: a publicar
+- [F05 API de parceiros — PR #1](https://github.com/ma4cio/catraca/pull/1).
+- [F06 Check-in — PR #2](https://github.com/ma4cio/catraca/pull/2).
 
 ## Decisões
 

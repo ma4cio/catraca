@@ -77,3 +77,22 @@ export async function publishEvent(eventId, organizerId) {
     return { ok: true };
   });
 }
+
+export async function cancelEvent(eventId, organizerId) {
+  return withTransaction(async (client) => {
+    const locked = await client.query('SELECT * FROM events WHERE id = $1 FOR UPDATE', [eventId]);
+    const event = locked.rows[0];
+    if (!event || event.organizer_id !== organizerId) return { error: 'not_found' };
+    if (event.status !== 'published') return { error: 'locked' };
+    await client.query(`UPDATE events SET status = 'cancelled' WHERE id = $1`, [eventId]);
+    await client.query(
+      `UPDATE tickets SET status = 'refunded' WHERE event_id = $1 AND status = 'confirmed'`,
+      [eventId],
+    );
+    await client.query(
+      `UPDATE tickets SET status = 'cancelled' WHERE event_id = $1 AND status = 'pending'`,
+      [eventId],
+    );
+    return { ok: true };
+  });
+}

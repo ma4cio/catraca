@@ -140,6 +140,9 @@ export function managementPage({ user, event, metrics, error = '', checkinResult
     if (event.status === 'draft') {
       editor += `<form method="post" action="/organizer/events/${escapeHtml(event.id)}/publish"><button type="submit">Publicar</button></form>`;
     }
+    if (event.status === 'published') {
+      editor += `<form method="post" action="/organizer/events/${escapeHtml(event.id)}/cancel"><button type="submit">Cancelar evento</button></form>`;
+    }
   }
   const checkinMessage = checkinResult
     ? `<p role="status" id="checkin-result">${escapeHtml(checkinResult)}</p>`
