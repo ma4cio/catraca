@@ -116,7 +116,7 @@ export function ticketsPage(user, tickets) {
   return layout('Meus ingressos', body, user);
 }
 
-export function managementPage({ user, event, metrics, error = '' }) {
+export function managementPage({ user, event, metrics, error = '', checkinResult = '' }) {
   const panel = `<section id="painel">
     <h2>Painel</h2>
     <p>Confirmados: <strong id="m-confirmados">${metrics.confirmed}</strong></p>
@@ -141,11 +141,25 @@ export function managementPage({ user, event, metrics, error = '' }) {
       editor += `<form method="post" action="/organizer/events/${escapeHtml(event.id)}/publish"><button type="submit">Publicar</button></form>`;
     }
   }
+  const checkinMessage = checkinResult
+    ? `<p role="status" id="checkin-result">${escapeHtml(checkinResult)}</p>`
+    : '';
+  const checkin = event.status === 'draft'
+    ? checkinMessage
+    : `<section id="checkin">
+        <h2>Check-in</h2>
+        ${checkinMessage}
+        <form method="post" action="/organizer/events/${escapeHtml(event.id)}/checkin">
+          <label>Código do ingresso <input name="code" required></label>
+          <button type="submit">Validar entrada</button>
+        </form>
+      </section>`;
   const statusLabel = { draft: 'rascunho', published: 'publicado', cancelled: 'cancelado' }[event.status];
   const body = `<h1 id="event-name">${escapeHtml(event.name)}</h1>
     <p>Situação: ${statusLabel}</p>
     ${panel}
-    ${editor}`;
+    ${editor}
+    ${checkin}`;
   return layout(event.name, body, user);
 }
 
