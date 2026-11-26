@@ -1,0 +1,14 @@
+{
+  "project": "catraca",
+  "updatedAt": "2026-11-25",
+  "note": "Relatórios ainda não commitados. O status só vira concluida quando o relatório mais recente da feature aprovar o contrato inteiro.",
+  "features": {
+    "F01": { "name": "Identidade", "wave": 1, "status": "implementada", "latestReport": null },
+    "F02": { "name": "Eventos", "wave": 2, "status": "implementada", "latestReport": null },
+    "F03": { "name": "Gateway", "wave": 2, "status": "implementada", "latestReport": null },
+    "F04": { "name": "Compras e vagas", "wave": 3, "status": "implementada", "latestReport": null },
+    "F05": { "name": "API de parceiros", "wave": 4, "status": "implementada", "latestReport": null },
+    "F06": { "name": "Check-in", "wave": 4, "status": "implementada", "latestReport": null },
+    "F07": { "name": "Cancelamento e painel", "wave": 5, "status": "implementada", "latestReport": null }
+  }
+}

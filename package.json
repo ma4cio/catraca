@@ -1,0 +1,22 @@
+{
+  "name": "catraca",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "node --test --test-concurrency=1",
+    "up": "node scripts/up.mjs",
+    "down": "node scripts/down.mjs",
+    "gates": "node scripts/gates.mjs"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/formbody": "^8.0.2",
+    "fastify": "^5.2.1",
+    "pg": "^8.13.3"
+  }
+}
