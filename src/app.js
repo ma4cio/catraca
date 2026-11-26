@@ -12,14 +12,8 @@ export async function buildApp() {
   await app.register(cookie, { secret: config.sessionSecret });
   await app.register(formbody);
   registerRoutes(app);
-  app.setErrorHandler((error, request, reply) => {
+  app.setErrorHandler((error, _request, reply) => {
     console.error(error);
-    if (request.url.startsWith('/api/')) {
-      const status = error.statusCode && error.statusCode < 500 ? error.statusCode : 500;
-      const code = status === 400 ? 'invalid_request' : 'internal';
-      reply.code(status === 400 ? 422 : status).send({ error: code });
-      return;
-    }
     reply.code(500).type('text/html; charset=utf-8').send(layout('Erro', '<h1>Erro interno.</h1>', null));
   });
   await app.register(registerPartnerRoutes, { prefix: '/api/partner' });
