@@ -20,6 +20,7 @@ import {
 } from './events.js';
 import { eventMetrics } from './metrics.js';
 import { listTicketsForUser, purchaseTicket } from './purchases.js';
+import { checkIn } from './checkin.js';
 
 function sendHtml(reply, status, html) {
   return reply.code(status).type('text/html; charset=utf-8').send(html);
@@ -255,6 +256,16 @@ export function registerRoutes(app) {
     return redirect(reply, `/organizer/events/${owned.event.id}`);
   });
 
+  app.post('/organizer/events/:id/checkin', async (request, reply) => {
+    const owned = await requireOwnedEvent(request, reply, request.params.id);
+    if (!owned) return;
+
+    const eventId = owned.event.id;
+    const checkinResult = await checkIn(eventId, request.body?.code);
+    const event = await getEvent(eventId);
+    const metrics = await eventMetrics(null, eventId);
+    return sendHtml(reply, 200, managementPage({ user: owned.user, event, metrics, checkinResult }));
+  });
 }
 
 function formOverlay(event, body) {
