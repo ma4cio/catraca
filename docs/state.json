@@ -1,14 +1,49 @@
 {
   "project": "catraca",
   "updatedAt": "2026-11-25",
-  "note": "Relatórios ainda não commitados. O status só vira concluida quando o relatório mais recente da feature aprovar o contrato inteiro.",
+  "note": "Os relatórios independentes registram evidências parciais. Os gates em Docker e a aprovação de ponta a ponta estão pendentes.",
   "features": {
-    "F01": { "name": "Identidade", "wave": 1, "status": "implementada", "latestReport": null },
-    "F02": { "name": "Eventos", "wave": 2, "status": "implementada", "latestReport": null },
-    "F03": { "name": "Gateway", "wave": 2, "status": "implementada", "latestReport": null },
-    "F04": { "name": "Compras e vagas", "wave": 3, "status": "implementada", "latestReport": null },
-    "F05": { "name": "API de parceiros", "wave": 4, "status": "implementada", "latestReport": null },
-    "F06": { "name": "Check-in", "wave": 4, "status": "implementada", "latestReport": null },
-    "F07": { "name": "Cancelamento e painel", "wave": 5, "status": "implementada", "latestReport": null }
+    "F01": {
+      "name": "Identidade",
+      "wave": 1,
+      "status": "avaliacao_bloqueada",
+      "latestReport": "docs/features/F01-identidade/avaliacao-5958df4.md"
+    },
+    "F02": {
+      "name": "Eventos",
+      "wave": 2,
+      "status": "avaliacao_bloqueada",
+      "latestReport": "docs/features/F02-eventos/avaliacao-5958df4.md"
+    },
+    "F03": {
+      "name": "Gateway",
+      "wave": 2,
+      "status": "avaliacao_bloqueada",
+      "latestReport": "docs/features/F03-gateway/avaliacao-5958df4.md"
+    },
+    "F04": {
+      "name": "Compras e vagas",
+      "wave": 3,
+      "status": "avaliacao_bloqueada",
+      "latestReport": "docs/features/F04-compras/avaliacao-5958df4.md"
+    },
+    "F05": {
+      "name": "API de parceiros",
+      "wave": 4,
+      "status": "avaliacao_bloqueada",
+      "latestReport": "docs/features/F05-parceiros/avaliacao-5958df4.md"
+    },
+    "F06": {
+      "name": "Check-in",
+      "wave": 4,
+      "status": "avaliacao_bloqueada",
+      "latestReport": "docs/features/F06-checkin/avaliacao-5958df4.md"
+    },
+    "F07": {
+      "name": "Cancelamento e painel",
+      "wave": 5,
+      "status": "avaliacao_bloqueada",
+      "latestReport": "docs/features/F07-cancelamento/avaliacao-5958df4.md"
+    }
   }
 }
